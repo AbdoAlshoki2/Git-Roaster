@@ -1,5 +1,5 @@
 from typing import Optional
-from github import Github, Auth, GithubException
+from github import Github, Auth, GithubException, PaginatedList
 from beartype import beartype
 from cachetools import TTLCache
 
@@ -167,5 +167,14 @@ class GitHubService:
             return commits[0].commit.author.date
         return None
         
+
+
+@beartype
+def sort_repos_by_create_date(repos: PaginatedList, reverse: bool = True):
+    return sorted(list(repos), key=lambda repo: repo.created_at, reverse=reverse)
+
+@beartype
+def sort_repos_by_recent_update(repos: PaginatedList, reverse: bool = True):
+    return sorted(list(repos), key=lambda repo: repo.updated_at, reverse=reverse)
     
     
