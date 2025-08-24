@@ -12,6 +12,8 @@ class Setting(BaseSettings):
     OPENAI_BASE_URL: str
     GROQ_API_KEY: str
 
+    GITHUB_TOKEN: str
+
     class Config:
         env_file = ".env"
 
