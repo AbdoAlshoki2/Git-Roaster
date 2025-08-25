@@ -170,11 +170,11 @@ class GitHubService:
 
 
 @beartype
-def sort_repos_by_create_date(repos: PaginatedList, reverse: bool = True):
+def sort_repos_by_create_date(repos, reverse: bool = True):
     return sorted(list(repos), key=lambda repo: repo.created_at, reverse=reverse)
 
 @beartype
-def sort_repos_by_recent_update(repos: PaginatedList, reverse: bool = True):
+def sort_repos_by_recent_update(repos, reverse: bool = True):
     return sorted(list(repos), key=lambda repo: repo.updated_at, reverse=reverse)
     
     
