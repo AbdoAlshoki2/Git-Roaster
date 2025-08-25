@@ -2,6 +2,8 @@ from typing import Optional
 from github import Github, Auth, GithubException, PaginatedList
 from beartype import beartype
 from cachetools import TTLCache
+import requests
+from models.enums.GithubEventEnum import GithubEventEnum
 
 class GitHubService:
     @beartype
@@ -191,6 +193,160 @@ class GitHubService:
                 return None
             raise e
         
+
+
+@beartype
+def get_event_payload(payload: dict, event_type: GithubEventEnum):
+    if event_type == GithubEventEnum.CommitComment:
+        comment_obj = payload.get("comment", {})
+        return {
+            "comment": comment_obj.get("body"),
+            "url": comment_obj.get("html_url"),
+        } if comment_obj.get("body") else {}
+
+    elif event_type in (GithubEventEnum.Create, GithubEventEnum.Delete):
+        return {
+            "ref_type": payload.get("ref_type"),
+            "ref": payload.get("ref"),
+        } if payload.get("ref_type") or payload.get("ref") else {}
+
+    elif event_type == GithubEventEnum.Fork:
+        forkee = payload.get("forkee", {})
+        parent_full_name = forkee.get("parent", {}).get("full_name") if "parent" in forkee else None
+        return {
+            "fork": forkee.get("full_name"),
+            "parent": parent_full_name,
+            "url": forkee.get("html_url"),
+        } if forkee.get("full_name") else {}
+
+    elif event_type == GithubEventEnum.Gollum:
+        pages = payload.get("pages", [])
+        page_titles = [page.get("title") for page in pages if "title" in page]
+        return {"gollum_pages": page_titles} if page_titles else {}
+
+    elif event_type == GithubEventEnum.IssueComment:
+        comment_obj = payload.get("comment", {})
+        return {
+            "issue_comment": comment_obj.get("body"),
+            "url": comment_obj.get("html_url"),
+            "issue_url": payload.get("issue", {}).get("html_url"),
+        } if comment_obj.get("body") else {}
+
+    elif event_type == GithubEventEnum.Issues:
+        issue_obj = payload.get("issue", {})
+        return {
+            "issue_title": issue_obj.get("title"),
+            "state": issue_obj.get("state"),
+            "url": issue_obj.get("html_url"),
+        } if issue_obj.get("title") else {}
+
+    elif event_type == GithubEventEnum.Member:
+        member_obj = payload.get("member", {})
+        return {
+            "member": member_obj.get("login"),
+            "action": payload.get("action"),
+        } if member_obj.get("login") else {}
+
+    elif event_type == GithubEventEnum.Public:
+        repo = payload.get("repo", {})
+        return {
+            "public_repo": repo.get("name"),
+        } if repo.get("name") else {}
+
+    elif event_type == GithubEventEnum.PullRequest:
+        pr_obj = payload.get("pull_request", {})
+        return {
+            "pull_request_title": pr_obj.get("title"),
+            "number": pr_obj.get("number"),
+            "state": pr_obj.get("state"),
+            "url": pr_obj.get("html_url"),
+        } if pr_obj.get("title") else {}
+
+    elif event_type == GithubEventEnum.PullRequestReview:
+        review_obj = payload.get("review", {})
+        pr_obj = payload.get("pull_request", {})
+        return {
+            "pull_request_review": review_obj.get("body"),
+            "state": review_obj.get("state"),
+            "pr_url": pr_obj.get("html_url"),
+        } if review_obj.get("body") else {}
+
+    elif event_type == GithubEventEnum.PullRequestReviewComment:
+        comment_obj = payload.get("comment", {})
+        pr_obj = payload.get("pull_request", {})
+        return {
+            "pull_request_review_comment": comment_obj.get("body"),
+            "url": comment_obj.get("html_url"),
+            "pr_url": pr_obj.get("html_url"),
+        } if comment_obj.get("body") else {}
+
+    elif event_type == GithubEventEnum.PullRequestReviewThread:
+        thread_obj = payload.get("thread", {})
+        pr_obj = payload.get("pull_request", {})
+        return {
+            "pull_request_review_thread": thread_obj.get("body"),
+            "pr_url": pr_obj.get("html_url"),
+        } if thread_obj.get("body") else {}
+
+    elif event_type == GithubEventEnum.Push:
+        ref = payload.get("ref")
+        commits = payload.get("commits", [])
+        commit_msgs = [c.get("message") for c in commits if "message" in c]
+        return {
+            "push_ref": ref,
+            "commit_messages": commit_msgs,
+            "size": payload.get("size"),
+        } if ref or commit_msgs else {}
+
+    elif event_type == GithubEventEnum.Release:
+        release_obj = payload.get("release", {})
+        return {
+            "release_name": release_obj.get("name"),
+            "tag_name": release_obj.get("tag_name"),
+            "url": release_obj.get("html_url"),
+        } if release_obj.get("name") or release_obj.get("tag_name") else {}
+
+    elif event_type == GithubEventEnum.Sponsorship:
+        sponsorship_obj = payload.get("sponsorship", {})
+        return {
+            "sponsorship_tier": sponsorship_obj.get("tier", {}).get("name"),
+            "sponsor": sponsorship_obj.get("sponsor", {}).get("login"),
+            "sponsoree": sponsorship_obj.get("sponsorable", {}).get("login"),
+        } if sponsorship_obj else {}
+
+    elif event_type == GithubEventEnum.Watch:
+        repo = payload.get("repo", {})
+        return {
+            "watch_repo": repo.get("name"),
+        } if repo.get("name") else {}
+
+    return {}
+
+@beartype
+def get_user_recent_activities(github_service: GitHubService, username: Optional[str] = None):
+    user = github_service.get_user(username=username)
+    url = f"https://api.github.com/users/{user.login}/events"
+    header = {"Accept": "application/vnd.github+json"}
+    if github_service.auth is not None:
+        header.update({"Authorization": f"Bearer {github_service.auth.token}"})
+    response = requests.get(url, headers=header)
+
+    if response.status_code != 200:
+        return []
+    
+    response_json = response.json()
+    result = []
+
+    for event in response_json:
+        result.append(
+            {
+                "event_type": event["type"],
+                "event_created_at": event["created_at"],
+                "event_repo": event["repo"]["name"],
+                "event_payload": get_event_payload(event["payload"], GithubEventEnum(event["type"])),
+            }
+        )
+    return result
 
 
 @beartype
