@@ -71,7 +71,14 @@ class GitHubService:
     def get_repositories(self, username: Optional[str] = None):
         """Get all repositories of a specific user from GitHub."""
         user = self.get_user(username=username)
-        return user.get_repos() if user else []
+        if not user:
+            return []
+        try:
+            return user.get_repos()
+        except GithubException as e:
+            if e.status == 404:
+                return []
+            raise e
 
     @beartype
     def get_repository_files_structure(self, repo_full_name: str):
@@ -79,8 +86,13 @@ class GitHubService:
         repo = self.get_repository(repo_full_name)
         if not repo:
             return []
-        files = repo.get_git_tree("HEAD", recursive=True)
-        return [file.path for file in files.tree]
+        try:
+            files = repo.get_git_tree("HEAD", recursive=True)
+            return [file.path for file in files.tree]
+        except GithubException as e:
+            if e.status == 404:  # Not found, e.g., empty repo
+                return []
+            raise e
 
     @beartype
     def get_repository_file_content(self, repo_full_name: str, file_path: str):
@@ -109,7 +121,14 @@ class GitHubService:
     def get_repo_commits(self, repo_full_name: str):
         """Get the commits of a specific repository from GitHub."""
         repo = self.get_repository(repo_full_name)
-        return repo.get_commits() if repo else []
+        if not repo:
+            return []
+        try:
+            return repo.get_commits()
+        except GithubException as e:
+            if e.status == 404:
+                return []
+            raise e
 
     @beartype
     def get_repo_stars_count(self, repo_full_name: str):
@@ -162,10 +181,15 @@ class GitHubService:
         repo = self.get_repository(repo_full_name)
         if not repo:
             return None
-        commits = repo.get_commits()
-        if commits.totalCount > 0:
-            return commits[0].commit.author.date
-        return None
+        try:
+            commits = repo.get_commits()
+            if commits.totalCount > 0:
+                return commits[0].commit.author.date
+            return None
+        except GithubException as e:
+            if e.status == 404:
+                return None
+            raise e
         
 
 
