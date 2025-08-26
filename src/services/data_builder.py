@@ -4,7 +4,7 @@ from beartype import beartype
 
 
 @beartype
-def get_repo_activities(github_service: GitHubService, repo_full_name: str, username: Optional[str] = None, repo_feasability: str = "public"):
+def get_repo_general_activities(github_service: GitHubService, repo_full_name: str, username: Optional[str] = None, repo_feasability: str = "public"):
     repo_commits = github_service.get_repo_commits(repo_full_name, author=username)
     activities = []
     if repo_commits:
@@ -12,11 +12,10 @@ def get_repo_activities(github_service: GitHubService, repo_full_name: str, user
             activities.append(
                 {
                     "repo_feasability": repo_feasability,
-                    "event_type": "PushEvent",
+                    "event_author" : commit.author.login,
                     "event_created_at": commit.commit.author.date.isoformat(),
                     "event_repo": repo_full_name,
                     "event_payload": {
-                        "push_ref": "refs/heads/main",
                         "commit_messages": [commit.commit.message]
                     }
                 }
@@ -37,7 +36,7 @@ def build_user_data(github_service: GitHubService, username: Optional[str] = Non
         sorted_repos = sort_repos_by_recent_update(repos)
         for repo in sorted_repos[:5]:
             repo_feasability = "private" if repo.private else "public"
-            repo_activities = get_repo_activities(github_service, repo.full_name, username=user.login, repo_feasability=repo_feasability)
+            repo_activities = get_repo_general_activities(github_service, repo.full_name, username=user.login, repo_feasability=repo_feasability)
             activities.extend(repo_activities)
 
     return {
@@ -46,4 +45,45 @@ def build_user_data(github_service: GitHubService, username: Optional[str] = Non
         "bio": user.bio,
         "profile_readme": readme if readme else "",
         "activities": activities,
+    }
+
+
+@beartype
+def get_detail_repo_commits(github_service: GitHubService, repo_full_name: str):
+    repo_commits = github_service.get_repo_commits(repo_full_name)
+    activities = []
+    if repo_commits:
+        for commit in repo_commits:
+            activities.append(
+                {
+                    "event_author" : commit.author.login,
+                    "event_created_at": commit.commit.author.date.isoformat(),
+                    "event_repo": repo_full_name,
+                    "event_payload": {
+                        "commit_messages": [commit.commit.message],
+                        "changed_files_count" : commit.files.totalCount,
+                        "changed_lines_count": commit.stats.total
+                    }
+                }
+            )
+    return activities
+
+@beartype
+def build_repo_data(github_service: GitHubService, repo_full_name: str, username: Optional[str] = None):
+    repo = github_service.get_repository(repo_full_name)
+    readme = github_service.get_repo_readme(repo_full_name)
+    activities = get_detail_repo_commits(github_service, repo_full_name)
+    repo_license = github_service.get_repo_license(repo_full_name)
+    files_structure = github_service.get_repository_files_structure(repo_full_name)
+    return {
+        "repo_full_name": repo_full_name,
+        "repo_feasability": "private" if repo.private else "public",
+        "repo_description": repo.description,
+        "repo_readme": readme if readme else "",
+        "repo_license": repo_license,
+        "activities": activities,
+        "stars_count": github_service.get_repo_stars_count(repo_full_name),
+        "forks_count": github_service.get_repo_forks_count(repo_full_name),
+        "languages": github_service.get_repo_languages(repo_full_name),
+        "files_structure": files_structure
     }
