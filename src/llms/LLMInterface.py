@@ -7,7 +7,7 @@ class LLMInterface(ABC):
         pass
 
     @abstractmethod
-    def generate_text(self, prompt: str, chat_history: list = []):
+    def generate_text(self, messages: list):
         pass
 
     @abstractmethod
