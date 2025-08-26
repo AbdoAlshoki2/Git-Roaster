@@ -120,13 +120,13 @@ class GitHubService:
         return self.get_repository(f"{username}/{username}")
         
     @beartype
-    def get_repo_commits(self, repo_full_name: str):
+    def get_repo_commits(self, repo_full_name: str, author: Optional[str] = None):
         """Get the commits of a specific repository from GitHub."""
         repo = self.get_repository(repo_full_name)
         if not repo:
             return []
         try:
-            return repo.get_commits()
+            return repo.get_commits(author=author) if author else repo.get_commits()
         except GithubException as e:
             if e.status == 404:
                 return []
