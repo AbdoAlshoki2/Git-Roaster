@@ -26,7 +26,7 @@ USER_REVIEW_PROMPT = Template(
 REPO_REVIEW_PROMPT = Template(
     "".join(
         [
-            "You are reviewing a Github repository, you will be provided with data about the repository, its readme, its files structure and more"
+            "You are reviewing a Github repository, you will be provided with data about the repository, its readme, its files structure and more",
             "$repo_data"
         ]
     )
