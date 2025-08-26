@@ -343,6 +343,7 @@ def get_user_recent_activities(github_service: GitHubService, username: Optional
                 "event_type": event["type"],
                 "event_created_at": event["created_at"],
                 "event_repo": event["repo"]["name"],
+                "is_event_public": event["public"],
                 "event_payload": get_event_payload(event["payload"], GithubEventEnum(event["type"])),
             }
         )
