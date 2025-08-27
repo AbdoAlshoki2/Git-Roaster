@@ -5,12 +5,12 @@ from models.enums.LLMEnum import LLMProviderEnum
 class LLMProviderFactory:
     @staticmethod
     def get_provider(config):
-        if config.LLM_PROVIDER == LLMProviderEnum.OPENAI.value:
+        if config.ROAST_LLM_PROVIDER == LLMProviderEnum.OPENAI.value:
             return OpenAIProvider(
-                api_key= config.OPENAI_API_KEY,
-                base_url= config.OPENAI_BASE_URL
+                api_key= config.ROAST_OPENAI_API_KEY,
+                base_url= config.ROAST_OPENAI_BASE_URL
             )
-        elif config.LLM_PROVIDER == LLMProviderEnum.GROQ.value:
+        elif config.ROAST_LLM_PROVIDER == LLMProviderEnum.GROQ.value:
             return GroqProvider(
-                api_key= config.GROQ_API_KEY,
+                api_key= config.ROAST_GROQ_API_KEY,
             )

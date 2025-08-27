@@ -1,28 +1,52 @@
-from services.github_service import GitHubService, get_user_recent_activities
-from services.data_builder import build_user_data, build_repo_data
-from helpers.config import get_settings
-from llms.LLMProviderFactory import LLMProviderFactory
-from models.schemas.prompts import SYSTEM_PROMPT, USER_REVIEW_PROMPT, REPO_REVIEW_PROMPT
-import json
+import typer
+from rich import print
+from roaster import GitRoaster
+from typing_extensions import Annotated
+from typing import Optional
+from helpers.setup import check_and_setup, setup_config
 
-settings = get_settings()
-github_service = GitHubService(settings.GITHUB_TOKEN)
-
-repo_data = build_repo_data(github_service, "AbdoAlshoki2/mini-rag-study")
-
-provider = LLMProviderFactory.get_provider(settings)
-provider.set_model(settings.LLM_MODEL_ID)
-
-lst = [
-    {
-        "role": "system",
-        "content": SYSTEM_PROMPT.substitute()
-    },
-    {
-        "role": "user",
-        "content": REPO_REVIEW_PROMPT.substitute(repo_data=json.dumps(repo_data))
-    }
-]
+app = typer.Typer(
+    name="git-roaster",
+    help="Review your Github repo or user profile in a unique, funny, and sarcastic way.",
+    add_completion=False
+)
 
 
-print(provider.generate_text(lst))
+@app.command(help="Roast a GitHub repository.")
+def repo(
+    repo_full_name: Annotated[str, typer.Argument(..., help="The full name of the repository (e.g., 'AbdoAlshoki2/Git-Roaster').")]
+):
+    """Roasts a GitHub repository based on its full name."""
+    try:
+        check_and_setup()
+        roaster = GitRoaster()
+        review = roaster.roast_repo(repo_full_name)
+        print(review)
+    except Exception as e:
+        print(f":x: [bold red]An error occurred:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command(help="Roast a GitHub user.")
+def user(
+    username: Annotated[Optional[str], typer.Argument(..., help="The username of the GitHub user.")] = None
+):
+    """Roasts a GitHub user based on their username."""
+    try:
+        check_and_setup()
+        roaster = GitRoaster()
+        review = roaster.roast_user(username)
+        print(review)
+    except Exception as e:
+        print(f":x: [bold red]An error occurred:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command(help="Configure Git-Roaster settings.")
+def setup():
+    """Run the configuration setup."""
+    setup_config()
+
+
+if __name__ == "__main__":
+    app()
