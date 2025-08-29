@@ -5,12 +5,11 @@ class LLMProviderEnum(Enum):
     GROQ = "GROQ"
 
 
-class OpenAIEnum(Enum):
-    USER = "user"
-    ASSISTANT = "developer"
-    SYSTEM = "system"
-
-class GroqEnum(Enum):
+class LLMEnum(Enum):
     USER = "user"
     ASSISTANT = "assistant"
     SYSTEM = "system"
+
+class LLMURLEnum(Enum):
+    OPENAI = "https://api.openai.com/v1/chat/completions"
+    GROQ = "https://api.groq.com/openai/v1/chat/completions"

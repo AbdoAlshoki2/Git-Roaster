@@ -1,5 +1,4 @@
 import typer
-from rich import print
 from roaster import GitRoaster
 from typing_extensions import Annotated
 from typing import Optional

@@ -2,8 +2,9 @@ import json
 from typing import Optional
 
 from helpers.config import get_settings, Settings
-from llms.LLMProviderFactory import LLMProviderFactory
-from models.schemas.prompts import SYSTEM_PROMPT, REPO_REVIEW_PROMPT, USER_REVIEW_PROMPT, USER_MESSAGE_PROMPT
+from models.enums.LLMEnum import LLMEnum
+from services.llm_service import LLMService
+from models.schemas.prompts import REPO_REVIEW_PROMPT, USER_REVIEW_PROMPT, USER_MESSAGE_PROMPT, SYSTEM_PROMPT
 from services.data_builder import build_repo_data, build_user_data
 from services.github_service import GitHubService
 
@@ -13,30 +14,23 @@ class GitRoaster:
     def __init__(self, settings: Settings = None):
         self.settings = settings or get_settings()
         self.github_service = GitHubService(self.settings.ROAST_GITHUB_TOKEN)
-        self.llm_provider = LLMProviderFactory.get_provider(self.settings)
-        self.llm_provider.set_model(self.settings.ROAST_LLM_MODEL_ID)
+        self.llm_service = LLMService(self.settings)
+        self.llm_service.set_model(self.settings.ROAST_LLM_MODEL_ID)
         self.chat_history = [
-            {
-                "role": self.llm_provider.enum_type.SYSTEM.value,
-                "content": SYSTEM_PROMPT.substitute()
-            }
+            self.llm_service.construct_prompt(SYSTEM_PROMPT.substitute(), LLMEnum.SYSTEM.value)
         ]
 
 
     def _generate_review(self, content: str) -> str:
         """Generates a review using the configured LLM provider."""
+
         self.chat_history.append(
-            {
-                "role": self.llm_provider.enum_type.USER.value,
-                "content": content
-            }
+            self.llm_service.construct_prompt(content, LLMEnum.USER.value)
         )
-        response = self.llm_provider.generate_text(messages=self.chat_history)
+        response = self.llm_service.generate_text(messages=self.chat_history)
+
         self.chat_history.append(
-            {
-                "role": self.llm_provider.enum_type.ASSISTANT.value,
-                "content": response
-            }
+            self.llm_service.construct_prompt(response, LLMEnum.ASSISTANT.value)
         )
         return response
 
