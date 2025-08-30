@@ -1,5 +1,5 @@
 from typing import Optional
-from github import Github, Auth, GithubException, PaginatedList
+from github import Github, Auth, GithubException
 from beartype import beartype
 from cachetools import TTLCache
 import requests

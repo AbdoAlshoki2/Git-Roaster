@@ -2,7 +2,10 @@ import typer
 from roaster import GitRoaster
 from typing_extensions import Annotated
 from typing import Optional
-from helpers.setup import check_and_setup, setup_config
+from helpers.cli_setup import ensure_config_exists, setup_config
+
+ensure_config_exists()
+roaster = GitRoaster()
 
 app = typer.Typer(
     name="git-roaster",
@@ -17,8 +20,7 @@ def repo(
 ):
     """Roasts a GitHub repository based on its full name."""
     try:
-        check_and_setup()
-        roaster = GitRoaster()
+
         review = roaster.roast_repo(repo_full_name)
         print(review)
     except Exception as e:
@@ -32,8 +34,6 @@ def user(
 ):
     """Roasts a GitHub user based on their username."""
     try:
-        check_and_setup()
-        roaster = GitRoaster()
         review = roaster.roast_user(username)
         print(review)
     except Exception as e:
@@ -43,8 +43,9 @@ def user(
 
 @app.command(help="Configure Git-Roaster settings.")
 def setup():
-    """Run the configuration setup."""
+    """Run the configuration setup and reload the roaster instance."""
     setup_config()
+    roaster.reload_config()
 
 
 if __name__ == "__main__":

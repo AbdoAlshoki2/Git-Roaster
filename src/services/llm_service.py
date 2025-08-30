@@ -15,11 +15,11 @@ class LLMService:
     @beartype
     def set_provider(self, provider: str):
         self.provider = provider
+        self.api_key = self.config.ROAST_DEFAULT_API_KEY
+        
         if provider == LLMProviderEnum.OPENAI.value:
-            self.api_key = self.config.ROAST_OPENAI_API_KEY
             self.base_url = LLMURLEnum.OPENAI.value if not self.config.ROAST_OPENAI_BASE_URL else self.config.ROAST_OPENAI_BASE_URL
         elif provider == LLMProviderEnum.GROQ.value:
-            self.api_key = self.config.ROAST_GROQ_API_KEY
             self.base_url = LLMURLEnum.GROQ.value
         else:
             self.api_key = None

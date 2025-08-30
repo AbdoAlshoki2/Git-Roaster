@@ -1,7 +1,7 @@
 import json
 from typing import Optional
 
-from helpers.config import get_settings, Settings
+from helpers.settings import get_settings, Settings
 from models.enums.LLMEnum import LLMEnum
 from services.llm_service import LLMService
 from models.schemas.prompts import REPO_REVIEW_PROMPT, USER_REVIEW_PROMPT, USER_MESSAGE_PROMPT, SYSTEM_PROMPT
@@ -19,6 +19,29 @@ class GitRoaster:
         self.chat_history = [
             self.llm_service.construct_prompt(SYSTEM_PROMPT.substitute(), LLMEnum.SYSTEM.value)
         ]
+
+    def reload_config(self):
+        """Reloads configuration and re-initializes services if settings have changed."""
+        new_settings = get_settings()
+
+        if self.settings.ROAST_GITHUB_TOKEN != new_settings.ROAST_GITHUB_TOKEN:
+            self.github_service = GitHubService(new_settings.ROAST_GITHUB_TOKEN)
+
+        llm_settings_changed = (
+            self.settings.ROAST_LLM_PROVIDER != new_settings.ROAST_LLM_PROVIDER or
+            self.settings.ROAST_DEFAULT_API_KEY != new_settings.ROAST_DEFAULT_API_KEY or
+            self.settings.ROAST_LLM_MODEL_ID != new_settings.ROAST_LLM_MODEL_ID or
+            self.settings.ROAST_OPENAI_BASE_URL != new_settings.ROAST_OPENAI_BASE_URL
+        )
+
+        if llm_settings_changed:
+            self.llm_service = LLMService(new_settings)
+            self.llm_service.set_model(new_settings.ROAST_LLM_MODEL_ID)
+            self.chat_history = [
+                self.llm_service.construct_prompt(SYSTEM_PROMPT.substitute(), LLMEnum.SYSTEM.value)
+            ]
+
+        self.settings = new_settings
 
 
     def _generate_review(self, content: str) -> str:
