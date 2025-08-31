@@ -1,114 +1,136 @@
 from typing import Optional
-from github import Github, Auth, GithubException
 from beartype import beartype
 from cachetools import TTLCache
 import requests
 from models.enums.GithubEventEnum import GithubEventEnum
+import functools
+from github import Github, Auth, GithubException, RateLimitExceededException, BadCredentialsException, UnknownObjectException
+
+
+def handle_github_api_errors(func):
+    """A decorator to handle common GitHub API errors and provide user-friendly messages."""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except RateLimitExceededException:
+            raise ConnectionError("GitHub API rate limit exceeded. Please wait or provide a token for a higher limit.")
+        except BadCredentialsException:
+            raise ValueError("Authentication failed. Please check your GitHub token.")
+        except UnknownObjectException:
+            return None
+        except GithubException as e:
+            raise ConnectionError(f"GitHub API error: {e.data.get('message', 'Unknown error')}")
+        except requests.exceptions.RequestException as e:
+            if e.response is not None and e.response.status_code == 403:
+                raise ConnectionError("GitHub API rate limit exceeded. Please wait or provide a token for a higher limit.")
+            raise ConnectionError(f"A network error occurred: {e}")
+    return wrapper
 
 class GitHubService:
     @beartype
     def __init__(self, token: Optional[str] = None):
         """Initialize the GitHubService with an optional token."""
-        if token == "":
-            raise ValueError("Token cannot be empty string")
-
-        self.auth = Auth.Token(token=token) if token else None
-        self.github_client = Github(auth=self.auth)
+        
+        self.token = token
+        self.auth = None if not token or not token.strip() else self._create_auth(token)
+        self.github_client = None
         self.user_cache = TTLCache(maxsize=100, ttl=3600)
         self.repo_cache = TTLCache(maxsize=100, ttl=3600)
+
+    def _create_auth(self, token: str):
+        return Auth.Token(token=token)
+
+    def _get_client(self):
+        if self.github_client is None:
+            self.github_client = Github(auth=self.auth)
+        return self.github_client
 
     @beartype
     def clear_cache(self):
         """Clear all caches manually"""
         self.user_cache.clear()
         self.repo_cache.clear()
-    
+
     @beartype
     def authenticate(self, token: str):
         """Authenticate with GitHub using a token."""
-        if not token:
+        if not token or not token.strip():
             raise ValueError("Token cannot be empty")
-        
-        self.auth = Auth.Token(token=token)
-        self.github_client = Github(auth=self.auth)
-        self.user_cache = TTLCache(maxsize=100, ttl=3600)
-        self.repo_cache = TTLCache(maxsize=100, ttl=3600)
 
+        self.auth = self._create_auth(token)
+        self.github_client = None
+        self.user_cache.clear()
+        self.repo_cache.clear()
+
+    @handle_github_api_errors
     @beartype
     def get_user(self, username: Optional[str] = None):
-        """Get a user's information from GitHub, using a cache to avoid redundant API calls."""
+        """Get a user's information from GitHub, using a cache."""
         cache_key = username if username else "_authenticated_user"
-
         if cache_key in self.user_cache:
             return self.user_cache[cache_key]
-        try:
-            if self.auth is not None:
-                user = self.github_client.get_user(login=username) if username else self.github_client.get_user()
-            else:
-                if not username:
-                    raise ValueError("Username required for unauthenticated connection")
-                user = self.github_client.get_user(login=username)
-            self.user_cache[cache_key] = user
-            return user
-        except GithubException as e:
-            if e.status == 404:
-                return None  # User not found
-            raise e
-    
+
+        client = self._get_client()
+        if self.auth is not None:
+            user = client.get_user(login=username) if username else client.get_user()
+        else:
+            if not username:
+                raise ValueError("Username required for unauthenticated access")
+            user = client.get_user(login=username)
+
+        self.user_cache[cache_key] = user
+        return user
+
+    @handle_github_api_errors
     @beartype
     def get_repository(self, repo_full_name: str):
-        """Get a specific repository from GitHub, using a cache to avoid redundant API calls."""
+        """Get a specific repository from GitHub, with caching."""
         if repo_full_name in self.repo_cache:
             return self.repo_cache[repo_full_name]
-        try:
-            repo = self.github_client.get_repo(repo_full_name)
-            self.repo_cache[repo_full_name] = repo
-            return repo
-        except GithubException as e:
-            if e.status == 404:
-                return None
-            raise e
+
+        client = self._get_client()
+        repo = client.get_repo(repo_full_name)
+        self.repo_cache[repo_full_name] = repo
+        return repo
     
+    @handle_github_api_errors
     @beartype
     def get_repositories(self, username: Optional[str] = None):
         """Get all repositories of a specific user from GitHub."""
         user = self.get_user(username=username)
         if not user:
             return []
-        try:
-            return user.get_repos()
-        except GithubException as e:
-            if e.status == 404:
-                return []
-            raise e
+        return user.get_repos()
 
+    @handle_github_api_errors
     @beartype
-    def get_repository_files_structure(self, repo_full_name: str):
+    def get_repo_branches(self, repo_full_name: str):
+        """Get all branches of a specific repository from GitHub."""
+        repo = self.get_repository(repo_full_name)
+        return repo.get_branches() if repo else []
+
+    @handle_github_api_errors
+    @beartype
+    def get_repository_files_structure(self, repo_full_name: str, branch: Optional[str] = None):
         """Get the files structure of a specific repository from GitHub."""
         repo = self.get_repository(repo_full_name)
         if not repo:
             return []
-        try:
-            files = repo.get_git_tree("HEAD", recursive=True)
-            return [file.path for file in files.tree]
-        except GithubException as e:
-            if e.status == 404:  # Not found, e.g., empty repo
-                return []
-            raise e
+        branch = branch if branch else repo.default_branch
+        files = repo.get_git_tree(branch, recursive=True)
+        return [file.path for file in files.tree]
 
+    @handle_github_api_errors
     @beartype
-    def get_repository_file_content(self, repo_full_name: str, file_path: str):
+    def get_repository_file_content(self, repo_full_name: str, file_path: str, branch: Optional[str] = None):
         """Get the content of a specific file from a specific repository from GitHub."""
         repo = self.get_repository(repo_full_name)
         if not repo:
             return None
-        try:
-            file_content = repo.get_contents(file_path)
-            return file_content.decoded_content.decode("utf-8")
-        except GithubException as e:
-            if e.status == 404:
-                return None
-            raise e
+        branch = branch if branch else repo.default_branch
+        file_content = repo.get_contents(file_path, ref=branch)
+        return file_content.decoded_content.decode("utf-8")
 
     @beartype
     def get_profile_special_repository(self, username: Optional[str] = None):
@@ -119,18 +141,15 @@ class GitHubService:
         username = user.login
         return self.get_repository(f"{username}/{username}")
         
+    @handle_github_api_errors
     @beartype
-    def get_repo_commits(self, repo_full_name: str, author: Optional[str] = None):
+    def get_repo_commits(self, repo_full_name: str, author: Optional[str] = None, branch: Optional[str] = None):
         """Get the commits of a specific repository from GitHub."""
         repo = self.get_repository(repo_full_name)
         if not repo:
             return []
-        try:
-            return repo.get_commits(author=author) if author else repo.get_commits()
-        except GithubException as e:
-            if e.status == 404:
-                return []
-            raise e
+        branch = branch if branch else repo.default_branch
+        return repo.get_commits(sha=branch, author=author) if author else repo.get_commits(sha=branch)
 
     @beartype
     def get_repo_stars_count(self, repo_full_name: str):
@@ -150,48 +169,38 @@ class GitHubService:
         repo = self.get_repository(repo_full_name)
         return repo.get_languages() if repo else {}
 
+    @handle_github_api_errors
     @beartype
-    def get_repo_readme(self, repo_full_name: str) -> Optional[str]:
+    def get_repo_readme(self, repo_full_name: str, branch: Optional[str] = None) -> Optional[str]:
         """Get the README content of a specific repository from GitHub."""
         repo = self.get_repository(repo_full_name)
         if not repo:
             return None
-        try:
-            readme = repo.get_readme()
-            return readme.decoded_content.decode("utf-8")
-        except GithubException as e:
-            if e.status == 404:
-                return None
-            raise e
+        branch = branch if branch else repo.default_branch
+        readme = repo.get_readme(ref=branch)
+        return readme.decoded_content.decode("utf-8")
 
+    @handle_github_api_errors
     @beartype
     def get_repo_license(self, repo_full_name: str):
         """Get the license of a specific repository from GitHub."""
         repo = self.get_repository(repo_full_name)
         if not repo:
             return None
-        try:
-            return repo.get_license()
-        except GithubException as e:
-            if e.status == 404:
-                return None
-            raise e
+        return repo.get_license()
 
+    @handle_github_api_errors
     @beartype
-    def get_repo_last_commit_date(self, repo_full_name: str):
+    def get_repo_last_commit_date(self, repo_full_name: str, branch: Optional[str] = None):
         """Get the date of the last commit of a specific repository from GitHub."""
         repo = self.get_repository(repo_full_name)
         if not repo:
             return None
-        try:
-            commits = repo.get_commits()
-            if commits.totalCount > 0:
-                return commits[0].commit.author.date
-            return None
-        except GithubException as e:
-            if e.status == 404:
-                return None
-            raise e
+        branch = branch if branch else repo.default_branch
+        commits = repo.get_commits(sha=branch)
+        if commits.totalCount > 0:
+            return commits[0].commit.author.date
+        return None
         
 
 
@@ -322,6 +331,7 @@ def get_event_payload(payload: dict, event_type: GithubEventEnum):
 
     return {}
 
+@handle_github_api_errors
 @beartype
 def get_user_recent_activities(github_service: GitHubService, username: Optional[str] = None):
     user = github_service.get_user(username=username)
@@ -332,7 +342,8 @@ def get_user_recent_activities(github_service: GitHubService, username: Optional
     response = requests.get(url, headers=header)
 
     if response.status_code != 200:
-        return []
+        response.raise_for_status() # Will be caught by the decorator
+        return [] # Should not be reached
     
     response_json = response.json()
     result = []

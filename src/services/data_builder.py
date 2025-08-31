@@ -31,10 +31,11 @@ def get_repo_general_activities(
 @beartype
 def get_detail_repo_commits(
     github_service: GitHubService, 
-    repo_full_name: str
+    repo_full_name: str,
+    branch: Optional[str] = None
 ):
     """Get detailed commit history for a repository."""
-    repo_commits = github_service.get_repo_commits(repo_full_name)
+    repo_commits = github_service.get_repo_commits(repo_full_name, branch=branch)
     activities = []
     
     if repo_commits:
@@ -58,6 +59,9 @@ def build_user_data(
 ):
     """Build comprehensive user data including profile and activities."""
     user = github_service.get_user(username=username)
+    if not user:
+        raise ValueError(f"User '{username}' not found on GitHub.")
+
     profile_repo = github_service.get_profile_special_repository(username=username)
     
     readme = github_service.get_repo_readme(profile_repo.full_name) if profile_repo else ""
@@ -89,20 +93,23 @@ def build_user_data(
 @beartype
 def build_repo_data(
     github_service: GitHubService, 
-    repo_full_name: str
+    repo_full_name: str,
+    branch: Optional[str] = None
 ):
     """Build comprehensive repository data including metadata and activities."""
     repo = github_service.get_repository(repo_full_name)
+    branches = github_service.get_repo_branches(repo_full_name)
     
     return {
         "repo_full_name": repo_full_name,
         "repo_feasability": "private" if repo.private else "public",
         "repo_description": repo.description,
-        "repo_readme": github_service.get_repo_readme(repo_full_name) or "",
+        "repo_readme": github_service.get_repo_readme(repo_full_name, branch=branch) or "",
         "repo_license": github_service.get_repo_license(repo_full_name),
-        "activities": get_detail_repo_commits(github_service, repo_full_name),
+        "activities": get_detail_repo_commits(github_service, repo_full_name, branch=branch),
         "stars_count": github_service.get_repo_stars_count(repo_full_name),
         "forks_count": github_service.get_repo_forks_count(repo_full_name),
         "languages": github_service.get_repo_languages(repo_full_name),
-        "files_structure": github_service.get_repository_files_structure(repo_full_name)
+        "files_structure": github_service.get_repository_files_structure(repo_full_name, branch=branch),
+        "branches_count": branches.totalCount if branches else 0
     }

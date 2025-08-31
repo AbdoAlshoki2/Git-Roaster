@@ -15,7 +15,8 @@ dependencies = [
     "pydantic-settings~=2.1",
     "PyGithub~=2.3",
     "beartype~=0.18",
-    "cachetools~=5.3"
+    "cachetools~=5.3",
+    "rich~=14.1"
 ]
 
 [project.scripts]

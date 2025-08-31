@@ -14,7 +14,9 @@ def load_config():
     with open(config_path, "r") as f:
         return json.load(f)
 
-def save_config(config_dict):
-    config_path = get_config_path()
-    with open(config_path, "w") as f:
-        json.dump(config_dict, f, indent=2)
+def save_config(config):
+    """Saves the config dictionary or Pydantic model to the file."""
+    if not isinstance(config, dict):
+        config = config.model_dump()
+    with open(get_config_path(), 'w') as f:
+        json.dump(config, f, indent=2)
