@@ -1,14 +1,16 @@
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich import print
 from rich.markdown import Markdown
+from rich.rule import Rule
 
 with Progress(SpinnerColumn(), TextColumn("{task.description}")) as progress:
     task = progress.add_task("Initializing Git-Roaster...", total=None)
 
     import typer
+    from typer_shell import make_typer_shell
     from roaster import GitRoaster
     from typing_extensions import Annotated
-    from typing import Optional
+    from typing import Optional, List
     from helpers.cli_setup import (
         ensure_config_exists, setup_config, update_github_token, update_llm_provider, update_api_key, update_model_id, update_base_url, save_config
     )
@@ -16,10 +18,10 @@ with Progress(SpinnerColumn(), TextColumn("{task.description}")) as progress:
     ensure_config_exists()
     roaster = GitRoaster()
 
-    app = typer.Typer(
-        name="git-roaster",
-        help="Review your Github repo or user profile in a unique, funny, and sarcastic way.",
-        add_completion=False
+
+    app = make_typer_shell(
+        prompt="git-roaster >> ",
+        intro="Review your Github repo or user profile in a unique, funny, and sarcastic way (type 'exit' or 'quit' to exit interactive mode)."
     )
 
     progress.update(task, description="Initialization complete!", completed=1)
@@ -38,6 +40,8 @@ def with_spinner(task_name: str, fn, *args):
             print(Markdown(result))
         except Exception:
             print(result)
+        print("\n")
+        print(Rule(style="dim white"))
         print()
         return result
     except (ConnectionError, ValueError) as e:
@@ -73,6 +77,11 @@ def user(
     """Roasts a GitHub user based on their username."""
     with_spinner("Collecting & roasting user data...", roaster.roast_user, username)
 
+
+@app.command(name="m")
+def user_message(message: List[str]):
+    prompt = " ".join(message)
+    with_spinner("Generating response...", roaster.normal_chat, prompt)
 
 @app.command(help="Configure Git-Roaster settings.")
 def config(

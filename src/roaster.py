@@ -67,7 +67,11 @@ class GitRoaster:
 
     def roast_repo(self, repo_full_name: str, branch: Optional[str] = None) -> str:
         """Generates a review for a given GitHub repository."""
-        repo_data = build_repo_data(self.github_service, repo_full_name, branch=branch)
+        try:
+            repo_data = build_repo_data(self.github_service, repo_full_name, branch=branch)
+        except AttributeError:
+            raise ValueError(f"Could not find repository '{repo_full_name}'. Please check that the name is correct and that you have access to it.")
+
         prompt_content = REPO_REVIEW_PROMPT.substitute(repo_data=json.dumps(repo_data, indent=2))
         
         review = self._generate_review(prompt_content)
@@ -80,8 +84,11 @@ class GitRoaster:
                 username = self.github_service.get_user().login
             except Exception:
                  raise ValueError("Username is required when not authenticated. Please provide a username or set a GitHub token.")
+        try:
+            user_data = build_user_data(self.github_service, username)
+        except AttributeError:
+            raise ValueError(f"Could not find user '{username}'. Please check that the username is correct.")
 
-        user_data = build_user_data(self.github_service, username)
         prompt_content = USER_REVIEW_PROMPT.substitute(user_data=json.dumps(user_data, indent=2))
 
         review = self._generate_review(prompt_content)

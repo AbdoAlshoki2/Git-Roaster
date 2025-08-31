@@ -4,6 +4,10 @@ from typing import Optional
 from .config import get_config_path, load_config, save_config
 
 
+def single_print_statement():
+    """Prints a single statement for refering to repo tool in cli setup or keys."""
+    print("You can get more details about how to setup your cli or how to get the needed keys from the tool repo (https://github.com/AbdoAlshoki2/Git-Roaster)")
+
 def get_or_create_config():
     """Loads config if it exists, otherwise creates a default structure. Ensures all keys are present."""
     default_config = {
@@ -30,7 +34,8 @@ def update_github_token(config, value: Optional[str] = None):
         value = getpass.getpass(
             f"GitHub Token [{'*' * len(current) if current else 'Not set'}]: "
         ).strip() or current
-
+    else:
+        single_print_statement()
     config.ROAST_GITHUB_TOKEN = value
     print("✅ GitHub Token updated.")
     return config
@@ -45,6 +50,8 @@ def update_llm_provider(config, value: Optional[str] = None):
         print("2. Groq")
         choice = input("Select (1 or 2): ").strip()
         value = {"1": "OPENAI", "2": "GROQ"}.get(choice, current)
+    else:
+        single_print_statement()
 
     value = str(value).upper()
     config.ROAST_LLM_PROVIDER = value
@@ -68,6 +75,8 @@ def update_api_key(config, value: Optional[str] = None):
         value = getpass.getpass(
             f"{provider} API Key [{'*' * len(current) if current else 'Not set'}]: "
         ).strip() or current
+    else:
+        single_print_statement()
 
     setattr(config, key_name, value)
     config.ROAST_DEFAULT_API_KEY = value
@@ -82,6 +91,8 @@ def update_model_id(config, value: Optional[str] = None):
         default = "gpt-4o-mini" if provider == "OPENAI" else "llama3-70b-8192"
         current = getattr(config, "ROAST_LLM_MODEL_ID", default)
         value = input(f"Model ID [{current}]: ").strip() or current
+    else:
+        single_print_statement()
 
     config.ROAST_LLM_MODEL_ID = value
     print(f"✅ Model ID set to {value}.")
@@ -100,6 +111,8 @@ def update_base_url(config, value: Optional[str] = None):
         value = input(
             f"OpenAI Base URL [{current if current else 'e.g., https://api.openai.com/v1'}]: "
         ).strip() or current
+    else:
+        single_print_statement()
 
     if isinstance(value, str) and value:
         value = value.rstrip("/")
@@ -116,7 +129,8 @@ def setup_config(config):
     from .settings import Settings
     if isinstance(config, dict):
         config = Settings(**config)
-
+    
+    single_print_statement()
     config = update_github_token(config)
     config = update_llm_provider(config)
     config = update_api_key(config)
