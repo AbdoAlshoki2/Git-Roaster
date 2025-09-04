@@ -38,6 +38,8 @@ roast config --set-llm-provider groq --set-api-key <your-api-key>
 ```
 
 > Notice the `--set-api-key` flag requires to set the llm provider, by default it will use GroqAPI.
+>
+> I made GroqAPI is the default provider because it is free and support multiple models (you can use bigger models like `openai/gpt-oss-120b` or `meta-llama/llama-4-maverick-17b-128e-instruct` for better responses and instructions following but have limited tokens per minute rate, or you can model like `groq/compound` to get more context but may be insufficient).
 
 Also you can set the model id from any of the above providers, check [GroqAPI models](https://console.groq.com/docs/rate-limits) or [OpenAI models](https://platform.openai.com/docs/models):
 
