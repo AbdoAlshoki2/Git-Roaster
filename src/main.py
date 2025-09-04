@@ -78,7 +78,7 @@ def user(
     with_spinner("Collecting & roasting user data...", roaster.roast_user, username)
 
 
-@app.command(name="m")
+@app.command(name="msg")
 def user_message(message: List[str]):
     prompt = " ".join(message)
     with_spinner("Generating response...", roaster.normal_chat, prompt)

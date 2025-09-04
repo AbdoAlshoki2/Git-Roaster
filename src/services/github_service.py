@@ -52,16 +52,6 @@ class GitHubService:
         self.user_cache.clear()
         self.repo_cache.clear()
 
-    @beartype
-    def authenticate(self, token: str):
-        """Authenticate with GitHub using a token."""
-        if not token or not token.strip():
-            raise ValueError("Token cannot be empty")
-
-        self.auth = self._create_auth(token)
-        self.github_client = None
-        self.user_cache.clear()
-        self.repo_cache.clear()
 
     @handle_github_api_errors
     @beartype

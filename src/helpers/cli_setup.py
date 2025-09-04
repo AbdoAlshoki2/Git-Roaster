@@ -133,10 +133,13 @@ def setup_config(config):
     single_print_statement()
     config = update_github_token(config)
     config = update_llm_provider(config)
-    config = update_api_key(config)
-    config = update_model_id(config)
+
     if config.ROAST_LLM_PROVIDER == "OPENAI":
         config = update_base_url(config)
+        
+    config = update_api_key(config)
+    config = update_model_id(config)
+
     
     save_config(config.model_dump())
     print("\n✅ Full configuration complete!")

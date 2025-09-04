@@ -11,7 +11,6 @@ from services.github_service import GitHubService
 
 class GitRoaster:
 
-    MAX_HISTORY = 10
     def __init__(self, settings: Settings = None):
         self.settings = settings or get_settings()
         self.github_service = GitHubService(self.settings.ROAST_GITHUB_TOKEN)
@@ -26,8 +25,6 @@ class GitRoaster:
         self.chat_history.append(
             self.llm_service.construct_prompt(content, role)
         )
-        if len(self.chat_history) > self.MAX_HISTORY + 1:  
-            self.chat_history = [self.chat_history[0]] + self.chat_history[-self.MAX_HISTORY:]
     
     def reload_config(self):
         """Reloads configuration and re-initializes services if settings have changed."""
