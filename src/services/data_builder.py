@@ -40,8 +40,9 @@ def get_detail_repo_commits(
     
     if repo_commits:
         for commit in repo_commits:
+            author_login = getattr(getattr(commit, "author", None), "login", None) or getattr(commit.commit.author, "name", None)
             activities.append({
-                "event_author": commit.author.login,
+                "event_author": author_login,
                 "event_created_at": commit.commit.author.date.isoformat(),
                 "event_repo": repo_full_name,
                 "event_payload": {
@@ -100,16 +101,22 @@ def build_repo_data(
     repo = github_service.get_repository(repo_full_name)
     branches = github_service.get_repo_branches(repo_full_name)
     
+    readme = github_service.get_repo_readme(repo_full_name, branch=branch) or ""
+    license_text = github_service.get_repo_license(repo_full_name) or ""
+    
+    files_structure = github_service.get_repository_files_structure(repo_full_name, branch=branch)
+
+    
     return {
         "repo_full_name": repo_full_name,
         "repo_feasability": "private" if repo.private else "public",
         "repo_description": repo.description,
-        "repo_readme": github_service.get_repo_readme(repo_full_name, branch=branch) or "",
-        "repo_license": github_service.get_repo_license(repo_full_name),
+        "repo_readme": readme,
+        "repo_license": license_text,
         "activities": get_detail_repo_commits(github_service, repo_full_name, branch=branch),
         "stars_count": github_service.get_repo_stars_count(repo_full_name),
         "forks_count": github_service.get_repo_forks_count(repo_full_name),
         "languages": github_service.get_repo_languages(repo_full_name),
-        "files_structure": github_service.get_repository_files_structure(repo_full_name, branch=branch),
+        "files_structure": files_structure,
         "branches_count": branches.totalCount if branches else 0
     }

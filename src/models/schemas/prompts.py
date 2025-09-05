@@ -21,7 +21,7 @@ USER_REVIEW_PROMPT = Template(
         "Here is GitHub user data:",
         "$user_data",
         "",
-        "Roast this user’s GitHub profile."
+        "Roast this user's GitHub profile."
     ])
 )
 

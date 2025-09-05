@@ -32,8 +32,11 @@ class LLMService:
     @beartype
     def generate_text(self, messages: list):
 
-        if not self.model_id or (not self.api_key and not self.base_url):
-            return None
+        if not self.model_id:
+            raise ValueError("Model ID is not set")
+            
+        if not self.base_url:
+            raise ValueError(f"Base URL is not set for provider {self.provider}")
 
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -45,16 +48,28 @@ class LLMService:
             "messages": messages
         }
 
-        response = requests.post(url=self.base_url, headers=headers, json=data)
+        try:
+            response = requests.post(url=self.base_url, headers=headers, json=data, timeout=45)
+        except requests.exceptions.Timeout:
+            raise ConnectionError("Request timed out. The API might be overloaded.")
+        except requests.exceptions.ConnectionError:
+            raise ConnectionError("Failed to connect to the API. Check your internet connection.")
+        except requests.exceptions.RequestException as e:
+            raise ConnectionError(f"Network error: {str(e)}")
 
         if response.status_code != 200:
-
-            return None
+            error_msg = f"API request failed with status {response.status_code}"
+            try:
+                error_detail = response.json()
+                error_msg += f": {error_detail.get('error', {}).get('message', 'Unknown error')}"
+            except:
+                error_msg += f": {response.text}"
+            raise ConnectionError(error_msg)
 
         response_json = response.json()
 
         if not response_json or not response_json.get("choices") or not response_json.get("choices")[0] or not response_json.get("choices")[0].get("message"):
-            return None
+            raise ConnectionError("Failed to get a response from the LLM service. Check your API key and network.")
 
         return response_json.get("choices")[0].get("message").get("content")
 

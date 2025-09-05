@@ -26,7 +26,7 @@ pipx install git+https://github.com/AbdoAlshoki2/Git-Roaster.git
 ## Setup
 
 This tool uses different APIs and tokens to work.
-First, you need to get an LLM provider API key. Right now, this tool supports GroqAPI and OpenAI interfaces.
+First, you need to get an LLM provider API key. Right now, this tool supports Groq API and OpenAI interfaces.
 
 You can get the API key from [Groq](https://console.groq.com/), [OpenAI](https://openai.com/api/), or any other LLM provider that supports OpenAI API (e.g. Ollama or OpenRouter).
 
@@ -37,11 +37,13 @@ roast config --set-llm-provider openai --set-api-key <your-api-key>
 roast config --set-llm-provider groq --set-api-key <your-api-key>
 ```
 
-> Notice the `--set-api-key` flag requires to set the llm provider, by default it will use GroqAPI.
+> Notice the `--set-api-key` flag requires to set the llm provider, by default it will use Groq API.
 >
-> I made GroqAPI is the default provider because it is free and support multiple models (you can use bigger models like `openai/gpt-oss-120b` or `meta-llama/llama-4-maverick-17b-128e-instruct` for better responses and instructions following but have limited tokens per minute rate, or you can model like `groq/compound` to get more context but may be insufficient).
+> I made Groq API the default provider because it is free and support multiple models (you can use bigger models like `openai/gpt-oss-120b` or `meta-llama/llama-4-maverick-17b-128e-instruct` for better responses and instructions following but have limited tokens per minute rate, or you can model like `groq/compound` to get more context but may be insufficient).
+>
+> However, Groq API may not be suitable for large data content or long chats since their limits will be exceeded, you can use your own OpenAI key, use Groq API with paid plans, or you can go with OpeRouter for free models.
 
-Also you can set the model id from any of the above providers, check [GroqAPI models](https://console.groq.com/docs/rate-limits) or [OpenAI models](https://platform.openai.com/docs/models):
+Also you can set the model id from any of the above providers, check [Groq API models](https://console.groq.com/docs/rate-limits) or [OpenAI models](https://platform.openai.com/docs/models):
 
 ```bash
 roast config --set-model-id <your-model-id>
@@ -61,6 +63,8 @@ roast config --set-llm-provider openai --set-api-key <your-api-key> --set-model-
 
 Since this tool fetches data from the GitHub API, you also need a GitHub token.
 You can generate one from [GitHub](https://github.com/settings/tokens). Without it, the tool only works on publicly available data.
+
+> I recommend using your own GitHub token, since it expands the amount of API request you can made per hour, and this tool uses multiple API requests to fetch data from GitHub for a single command, also, the accessed data will be based on your token permissions since some llm providers logs the prompts.
 
 ```bash
 roast config --set-github-token <your-github-token>
@@ -91,9 +95,9 @@ This tool has 3 main commands:
 ## Examples
 
 ```bash
-roast repo AbdoAlshoki2/Git-Roaster
-roast user AbdoAlshoki2
-roast msg "Hello, how are you?"
+roast repo AbdoAlshoki2/Git-Roaster  # reviewing Git-Roaster repository 
+roast user AbdoAlshoki2  # reviewing AbdoAlshoki2 user profile
+roast msg "Hello, how are you?"  # normal chat message
 ```
 
 For the `roast user`, if you set a GitHub token, you can omit the username to roast your own profile:
@@ -114,7 +118,16 @@ Also this tool support interactive mode, by running `roast` without any argument
 ```bash
 roast
 Review your Github repo or user profile in a unique, funny, and sarcastic way (type 'exit' or 'quit' to exit interactive mode).
-git-roaster >>
+
+git-roaster >> roast user AbdoAlshoki2
+.
+.
+.
+git-roaster >> roast msg "What can I do to improve my commit messages?"
+.
+.
+.
+git-roaster >> exit
 ```
 
 ---

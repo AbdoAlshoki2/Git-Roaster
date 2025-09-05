@@ -70,6 +70,7 @@ class GitRoaster:
             raise ValueError(f"Could not find repository '{repo_full_name}'. Please check that the name is correct and that you have access to it.")
 
         prompt_content = REPO_REVIEW_PROMPT.substitute(repo_data=json.dumps(repo_data, indent=2))
+
         
         review = self._generate_review(prompt_content)
         return review
@@ -87,7 +88,6 @@ class GitRoaster:
             raise ValueError(f"Could not find user '{username}'. Please check that the username is correct.")
 
         prompt_content = USER_REVIEW_PROMPT.substitute(user_data=json.dumps(user_data, indent=2))
-
         review = self._generate_review(prompt_content)
         return review
 

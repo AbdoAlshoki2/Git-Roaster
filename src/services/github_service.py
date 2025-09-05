@@ -161,7 +161,7 @@ class GitHubService:
 
     @handle_github_api_errors
     @beartype
-    def get_repo_readme(self, repo_full_name: str, branch: Optional[str] = None) -> Optional[str]:
+    def get_repo_readme(self, repo_full_name: str, branch: Optional[str] = None):
         """Get the README content of a specific repository from GitHub."""
         repo = self.get_repository(repo_full_name)
         if not repo:
@@ -177,7 +177,8 @@ class GitHubService:
         repo = self.get_repository(repo_full_name)
         if not repo:
             return None
-        return repo.get_license()
+        license_file = repo.get_license()
+        return license_file.decoded_content.decode("utf-8")
 
     @handle_github_api_errors
     @beartype
